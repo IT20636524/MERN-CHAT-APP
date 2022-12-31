@@ -1,5 +1,4 @@
 const express = require("express");
-const res = require("express/lib/response");
 const { chats } = require("./data/data");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
@@ -12,11 +11,11 @@ const app = express();
 
 app.use(express.json()); //to accept JSON Data
 
-app.get("/", (req, res) => {
-  res.send("API is Running");
-});
+// app.get("/", (req, res) => {
+//   res.send("API is Running");
+// });
 
-app.use('api/user',userRoutes);
+app.use('/api/user',userRoutes);
 
 const PORT = process.env.PORT || 5000;
 
