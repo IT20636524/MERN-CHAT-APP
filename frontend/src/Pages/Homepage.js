@@ -1,4 +1,4 @@
-import React from "react"; //rafce-shortcut
+import React, { useEffect } from "react"; //rafce-shortcut
 import {
   Box,
   Container,
@@ -11,8 +11,19 @@ import {
 } from "@chakra-ui/react";
 import Login from "../components/Authentication/Login";
 import Signup from "../components/Authentication/Signup";
+import { useHistory } from "react-router-dom";
 
 const Homepage = () => {
+  const history = useHistory();
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("userInfo"));
+
+    if (user) {
+      history.pushState("/chats");
+    }
+  }, [history]);
+
   return (
     <Container maxW="xl" centerContent>
       <Box
@@ -49,10 +60,10 @@ const Homepage = () => {
           </TabList>
           <TabPanels>
             <TabPanel>
-            <Login/>
+              <Login />
             </TabPanel>
             <TabPanel>
-              <Signup/>
+              <Signup />
             </TabPanel>
           </TabPanels>
         </Tabs>
