@@ -14,13 +14,20 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import axios from "axios";
-import './styles.css'
+import "./styles.css";
 import ScrollableChat from "./ScrollableChat";
+import { io } from "socket.io-client";
+
+const ENDPOINT = "http://localhost:5000";
+var socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [newMessage, setNewMessage] = useState();
+  const [newMessage, setNewMessage] = useState('');
+  const [socketConnected, setSocketConnected] = useState(false);
+  
+
   const { user, selectedChat, setSelectedChat } = ChatState();
   const toast = useToast();
 
@@ -43,6 +50,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       console.log(messages);
       setMessages(data);
       setLoading(false);
+
+      socket.emit("join chat", selectedChat._id);
     } catch (error) {
       toast({
         title: "Error Occured!",
@@ -56,45 +65,67 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
 
   useEffect(() => {
+    socket = io(ENDPOINT);
+    socket.emit("setup", user);
+    socket.on("connection", () => setSocketConnected(true));
+  }, []);
+
+  useEffect(() => {
     fetchMessages();
+
+    selectedChatCompare = selectedChat;
   }, [selectedChat]);
 
-  const sendMessage = async (event) => {
-    if (event.key === "Enter" && newMessage) {
-      try {
-        const config = {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${user.token}`,
-          },
-        };
-
-        setNewMessage("");
-
-        const { data } = await axios.post(
-          "/api/message",
-          {
-            content: newMessage,
-            chatId: selectedChat._id,
-          },
-          config
-        );
-
-        console.log(data);
-
-        setMessages([...messages.data]);
-      } catch (error) {
-        toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom",
-        });
+  useEffect(() => {
+    socket.on("message received", (newMessageReceived) => {
+      if (
+        !selectedChatCompare ||
+        selectedChatCompare._id !== newMessageReceived.chat._id
+      ) {
+        // give notification
+      } else {
+        setMessages([...messages, newMessageReceived]);
       }
-    }
-  };
+    });
+  });
+
+   const sendMessage = async (event) => {
+     if (event.key === "Enter" && newMessage) {
+       socket.emit("stop typing", selectedChat._id);
+       try {
+         const config = {
+           headers: {
+             "Content-type": "application/json",
+             Authorization: `Bearer ${user.token}`,
+           },
+         };
+
+         setNewMessage("");
+
+         const { data } = await axios.post(
+           "/api/message",
+           {
+             content: newMessage,
+             chatId: selectedChat,
+           },
+           config
+         );
+
+         socket.emit("new message", data);
+         setMessages([...messages,data]);
+
+       } catch (error) {
+         toast({
+           title: "Error Occured!",
+           description: "Failed to send the Message",
+           status: "error",
+           duration: 5000,
+           isClosable: true,
+           position: "bottom",
+         });
+       }
+     }
+   };
 
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
@@ -157,7 +188,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               />
             ) : (
               <div className="messages">
-                <ScrollableChat messages={messages}/>
+                <ScrollableChat messages={messages} />
               </div>
             )}
             <FormControl onKeyDown={sendMessage} isRequired mt={3}>
