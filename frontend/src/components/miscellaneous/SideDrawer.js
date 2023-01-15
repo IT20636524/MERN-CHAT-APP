@@ -27,6 +27,9 @@ import { useHistory } from "react-router-dom";
 import axios from "axios";
 import ChatLoading from "../ChatLoading";
 import UserListItem from "../UserAvatar/UserListItem";
+import { getSender } from "../../config/ChatLogics";
+import { Effect } from 'react-notification-badge'
+import NotificationBadge from "react-notification-badge";
 
 const SideDrawer = () => {
   const [search, setSearch] = useState("");
@@ -34,7 +37,14 @@ const SideDrawer = () => {
   const [loading, setLoading] = useState(false);
   const [loadingChat, setLoadingChat] = useState();
 
-  const { user, setSelectedChat, chats, setChats } = ChatState();
+  const {
+    user,
+    setSelectedChat,
+    chats,
+    setChats,
+    notification,
+    setNotification,
+  } = ChatState();
   const history = useHistory();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
@@ -44,8 +54,8 @@ const SideDrawer = () => {
     history.push("/");
   };
 
-  const handleSearch = async() => {
-    if(!search){
+  const handleSearch = async () => {
+    if (!search) {
       toast({
         title: "Please Enter something in search",
         status: "warning",
@@ -60,11 +70,14 @@ const SideDrawer = () => {
       setLoading(true);
       const config = {
         headers: {
-          Authorization:`Bearer ${user.token}`,
+          Authorization: `Bearer ${user.token}`,
         },
       };
 
-      const { data } = await axios.get(`http://localhost:5000/api/user?search=${search}`, config);
+      const { data } = await axios.get(
+        `http://localhost:5000/api/user?search=${search}`,
+        config
+      );
 
       setLoading(false);
       setSearchResult(data);
@@ -81,18 +94,18 @@ const SideDrawer = () => {
     }
   };
 
-  const accessChat = async(userId) => {
+  const accessChat = async (userId) => {
     try {
       setLoadingChat(true);
       const config = {
         headers: {
-          "Content-type":"application/json",
+          "Content-type": "application/json",
           Authorization: `Bearer ${user.token}`,
         },
       };
 
-      const {data} = await axios.post('/api/chat',{userId},config);
-      if(!chats.find((c) => c._id === data._id)) setChats([data, ...chats]);
+      const { data } = await axios.post("/api/chat", { userId }, config);
+      if (!chats.find((c) => c._id === data._id)) setChats([data, ...chats]);
 
       setSelectedChat(data);
       setLoadingChat(false);
@@ -135,9 +148,25 @@ const SideDrawer = () => {
         <div>
           <Menu>
             <MenuButton p={1}>
+            <NotificationBadge
+              count={notification.length}
+              effect={Effect.SCALE}
+            />
               <BellIcon fontSize="2xl" m={1} />
             </MenuButton>
-            {/* <MenuList></MenuList> */}
+            <MenuList pl={2}>
+              {!notification.length && "No New Messages"}
+              {notification.map((notif) => (
+                <MenuItem key={notif._id} onClick={()=>{
+                  setSelectedChat(notif.chat);
+                  setNotification(notification.filter((n)=> n !== notif));
+                }}>
+                  {notif.chat.isGroupChat
+                    ? `New Message in ${notif.chat.chatName}`
+                    : `New Message from ${getSender(user,notif.chat.users)}`}
+                </MenuItem>
+              ))}
+            </MenuList>
           </Menu>
           <Menu>
             <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
@@ -172,18 +201,18 @@ const SideDrawer = () => {
               />
               <Button onClick={handleSearch}>Go</Button>
             </Box>
-            {loading? (
-              <ChatLoading/>
+            {loading ? (
+              <ChatLoading />
             ) : (
-              searchResult?.map((user)=>(
+              searchResult?.map((user) => (
                 <UserListItem
                   key={user._id}
                   user={user}
-                  handleFunction={()=>accessChat(user._id)}
+                  handleFunction={() => accessChat(user._id)}
                 />
               ))
             )}
-            {loadingChat && <Spinner ml="auto" display="flex"/>}
+            {loadingChat && <Spinner ml="auto" display="flex" />}
           </DrawerBody>
         </DrawerContent>
       </Drawer>
